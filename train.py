@@ -13,46 +13,16 @@ from keras.applications.mobilenet import preprocess_input
 from keras.models import Sequential, Model
 from pathlib import Path
 import matplotlib.pyplot as plt
+from sklearn.metrics import classification_report
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 
 data_folder = Path("C:/Users/kbinw/Binwant/01 IGDTUW/7th Sem/Final YR Project/Code 4/Sign_lang_project/")
 
 img_width, img_height = 224, 224
-img_folder = data_folder/"Data"
+img_folder = data_folder/"Dataset"
 
-
-# def create_dataset(img_folder):
-#     img_data_array = []
-#     class_name = []
-#
-#     for dir1 in os.listdir(img_folder):
-#         for file in os.listdir(os.path.join(img_folder, dir1)):
-#             image_path = os.path.join(img_folder, dir1, file)
-#             image = cv2.imread(image_path, cv2.COLOR_BGR2RGB)
-#             image = cv2.resize(image, (img_width, img_height), interpolation=cv2.INTER_AREA)
-#             image = np.array(image)
-#             image = image.astype('float32')
-#             image /= 255
-#             img_data_array.append(image)
-#             class_name.append(dir1)
-#     return img_data_array, class_name
-#
-#
-# # extract the image array and class name
-# img_data, class_name = create_dataset(img_folder)
-# print(img_data)
-#
-# target_dict = {k: v for v, k in enumerate(np.unique(class_name))}
-# target_dict
-#
-# with open(data_folder/"Models/label.txt", 'w') as f:
-#     for key, value in target_dict.items():
-#         f.write('%s %s\n' % (value, key))
-#
-# target_val = [target_dict[class_name[i]] for i in range(len(class_name))]
-# print(target_dict)
-
-epochs = 10
-batch_size = 16
+n_epoch = 1
+batch_sz = 20
 input_shape = (img_width, img_height, 3)
 
 mobile = tf.keras.applications.mobilenet.MobileNet()
@@ -69,7 +39,7 @@ x = Dense(1024, activation='relu')(x)
 x = Dense(512, activation='relu')(x)
 
 # final layer with softmax activation
-preds = Dense(23, activation='softmax')(x)
+preds = Dense(5, activation='softmax')(x)
 
 model = Model(inputs=base_model.input, outputs=preds)
 
@@ -77,37 +47,68 @@ model.compile(optimizer=tf.keras.optimizers.RMSprop(lr=0.0001), loss='categorica
 
 model.summary()
 
-train_datagen = ImageDataGenerator(preprocessing_function=preprocess_input)
+train_datagen = ImageDataGenerator(preprocessing_function=preprocess_input,
+                                   validation_split=0.2)
 
-train_generator = train_datagen.flow_from_directory(data_folder / "Data/",
+train_generator = train_datagen.flow_from_directory(img_folder/"train",
                                                     target_size=(224, 224),
                                                     color_mode='rgb',
-                                                    batch_size=128,
+                                                    batch_size=batch_sz,
                                                     class_mode='categorical',
-                                                    shuffle=True)
+                                                    shuffle=True,
+                                                    subset='training')
+
+validation_generator = train_datagen.flow_from_directory(img_folder/"train",
+                                                         target_size=(224, 224),
+                                                         color_mode='rgb',
+                                                         batch_size=batch_sz,
+                                                         class_mode='categorical',
+                                                         shuffle=True,
+                                                         subset='validation')
+
+test_generator = ImageDataGenerator().flow_from_directory(img_folder/"test",
+                                                          shuffle=False,
+                                                          target_size=(224, 224),
+                                                          color_mode='rgb',
+                                                          batch_size=batch_sz)
 
 step_size_train = train_generator.n//train_generator.batch_size
 history = model.fit(train_generator,
+                    validation_data=validation_generator,
+                    validation_steps=validation_generator.samples//validation_generator.batch_size,
                     steps_per_epoch=step_size_train,
-                    epochs=1)
+                    epochs=n_epoch)
 
-# list all data in history
-print(history.history.keys())
+predictions = model.predict_generator(test_generator, test_generator.samples//batch_sz+1)
+pred = np.argmax(predictions, axis=1)
+cm = confusion_matrix(test_generator.classes, pred)
+
+print('Confusion Matrix')
+print(cm)
+print('Classification Report')
+target_names = ['0', '1', '2', '3', '4']
+print(classification_report(test_generator.classes, pred, target_names=target_names))
+
+disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=target_names)
+disp.plot(cmap=plt.cm.Blues)
+plt.show()
 
 # summarize history for accuracy
 plt.plot(history.history['acc'])
+plt.plot(history.history['val_acc'])
 plt.title('Model Accuracy')
 plt.ylabel('accuracy')
 plt.xlabel('epoch')
-plt.legend(['train', 'test'], loc='upper left')
+plt.legend(['train', 'val'], loc='upper left')
 plt.show()
 
 # summarize history for loss
 plt.plot(history.history['loss'])
-plt.title('model loss')
+plt.plot(history.history['val_loss'])
+plt.title('Model Loss')
 plt.ylabel('loss')
 plt.xlabel('epoch')
-plt.legend(['train', 'test'], loc='upper left')
+plt.legend(['train', 'val'], loc='upper left')
 plt.show()
 
 # Save the trained model for testing and classification in real-time
