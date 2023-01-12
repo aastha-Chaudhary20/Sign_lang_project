@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import classification_report
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 
-data_folder = Path("C:/Users/kbinw/Binwant/01 IGDTUW/7th Sem/Final YR Project/Code 4/Sign_lang_project/")
+data_folder = Path("/home/dic-lb/PycharmProjects/Sign_lang_project/")
 
 img_width, img_height = 224, 224
 img_folder = data_folder/"Dataset"
