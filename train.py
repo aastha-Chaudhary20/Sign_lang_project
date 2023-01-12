@@ -50,7 +50,7 @@ model.summary()
 train_datagen = ImageDataGenerator(preprocessing_function=preprocess_input,
                                    validation_split=0.2)
 
-train_generator = train_datagen.flow_from_directory(img_folder/"train",
+train_generator = train_datagen.flow_from_directory(img_folder,
                                                     target_size=(224, 224),
                                                     color_mode='rgb',
                                                     batch_size=batch_sz,
@@ -58,7 +58,7 @@ train_generator = train_datagen.flow_from_directory(img_folder/"train",
                                                     shuffle=True,
                                                     subset='training')
 
-validation_generator = train_datagen.flow_from_directory(img_folder/"train",
+validation_generator = train_datagen.flow_from_directory(img_folder,
                                                          target_size=(224, 224),
                                                          color_mode='rgb',
                                                          batch_size=batch_sz,
@@ -66,11 +66,11 @@ validation_generator = train_datagen.flow_from_directory(img_folder/"train",
                                                          shuffle=True,
                                                          subset='validation')
 
-test_generator = ImageDataGenerator().flow_from_directory(img_folder/"test",
-                                                          shuffle=False,
-                                                          target_size=(224, 224),
-                                                          color_mode='rgb',
-                                                          batch_size=batch_sz)
+#test_generator = ImageDataGenerator().flow_from_directory(img_folder/"test",
+#                                                          shuffle=False,
+#                                                          target_size=(224, 224),
+#                                                          color_mode='rgb',
+#                                                          batch_size=batch_sz)
 
 step_size_train = train_generator.n//train_generator.batch_size
 history = model.fit(train_generator,
@@ -79,15 +79,15 @@ history = model.fit(train_generator,
                     steps_per_epoch=step_size_train,
                     epochs=n_epoch)
 
-predictions = model.predict_generator(test_generator, test_generator.samples//batch_sz+1)
+predictions = model.predict_generator(train_generator, test_generator.samples//batch_sz+1)
 pred = np.argmax(predictions, axis=1)
-cm = confusion_matrix(test_generator.classes, pred)
+cm = confusion_matrix(train_generator.classes, pred)
 
 print('Confusion Matrix')
 print(cm)
 print('Classification Report')
 target_names = ['0', '1', '2', '3', '4']
-print(classification_report(test_generator.classes, pred, target_names=target_names))
+print(classification_report(train_generator.classes, pred, target_names=target_names))
 
 disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=target_names)
 disp.plot(cmap=plt.cm.Blues)
